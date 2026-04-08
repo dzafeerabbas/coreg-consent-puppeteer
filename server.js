@@ -1,12 +1,13 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const app = express();
-
 app.use(express.json({ limit: '10mb' }));
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 app.post('/submit', async (req, res) => {
   const leadData = req.body;
-  
+
   const baseUrl = 'https://formquickly.com/intake-submit-page';
   const queryParams = new URLSearchParams({
     first_name: leadData.first_name || '',
@@ -22,12 +23,11 @@ app.post('/submit', async (req, res) => {
     trustedform_cert_url: leadData.trustedform_cert_url || '',
     lead_source: leadData.lead_source || '',
     sub_id: leadData.sub_id || '',
-    consent: 'on'
+    consent: leadData.consent
   });
 
   const fullUrl = `${baseUrl}?${queryParams.toString()}`;
-
-  console.log(`🚀 Processing lead: ${leadData.email || 'unknown'}`);
+  console.log(`Processing lead: ${leadData.email || 'unknown'}`);
 
   let browser;
   try {
@@ -46,44 +46,50 @@ app.post('/submit', async (req, res) => {
     });
 
     const page = await browser.newPage();
-    
-    // Set a realistic user-agent so GHL doesn't block it
+
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36');
 
-    await page.goto(fullUrl, { 
-      waitUntil: 'networkidle2', 
-      timeout: 45000 
+    await page.goto(fullUrl, {
+      waitUntil: 'networkidle2',
+      timeout: 45000
     });
 
-    // Extra waits to let JS fully execute (this is the key part)
-    console.log("Waiting for JS to populate fields and submit form...");
-    await page.waitFor(3000);   // Initial load
+    console.log('Page loaded, waiting for JS to execute...');
+    await sleep(3000);
+    await sleep(6000);
 
-    // Try to confirm the form was submitted by waiting for navigation or success indicator
-    await page.waitFor(6000);
-
-    // Optional: Check if we can see any success message or redirect
     const pageContent = await page.content();
-    if (pageContent.includes("success") || pageContent.includes("submitted")) {
-      console.log("Possible success indicator found in page");
-    }
+    const hasSuccess = pageContent.toLowerCase().includes('success') ||
+                       pageContent.toLowerCase().includes('submitted') ||
+                       pageContent.toLowerCase().includes('thank you');
+
+    console.log(`Success indicator found: ${hasSuccess}`);
 
     await browser.close();
 
-    console.log(`✅ Successfully processed lead: ${leadData.email || 'unknown'}`);
-    res.json({ status: "success", email: leadData.email, message: "Form submitted via headless browser" });
+    console.log(`Done: ${leadData.email || 'unknown'}`);
+    res.json({
+      status: 'success',
+      email: leadData.email,
+      successIndicator: hasSuccess,
+      message: 'Form submitted via headless browser'
+    });
 
   } catch (err) {
     if (browser) await browser.close().catch(() => {});
-    console.error("❌ Puppeteer error:", err.message);
-    res.status(500).json({ status: "error", message: err.message });
+    console.error('Puppeteer error:', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Coreg middleware running on port ${PORT}`);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Coreg middleware running on port ${PORT}`);
