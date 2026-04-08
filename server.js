@@ -29,7 +29,7 @@ app.post('/submit', async (req, res) => {
 
   const fullUrl = `${baseUrl}?${queryParams.toString()}`;
 
-  console.log(`🚀 Processing lead: ${leadData.email || 'unknown'}`);
+  console.log(`🚀 Processing: ${leadData.email || 'unknown'}`);
 
   let browser;
   try {
@@ -39,7 +39,6 @@ app.post('/submit', async (req, res) => {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
         '--single-process',
@@ -50,68 +49,67 @@ app.post('/submit', async (req, res) => {
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36');
 
-    await page.goto(fullUrl, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 45000 
-    });
+    await page.goto(fullUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    console.log('Page loaded. Now forcing JS to fill fields and submit...');
+    console.log('✅ Page loaded. Forcing fill + submit...');
 
-    // === CRITICAL PART: Manually run the auto-fill + consent + submit inside the page ===
     await page.evaluate((data) => {
-      // Fill all fields
-      const setValue = (name, value) => {
+      // Fill fields
+      const setField = (name, value) => {
         const el = document.querySelector(`input[name="${name}"]`);
         if (el) {
-          el.value = value;
+          el.value = value || '';
           el.dispatchEvent(new Event('input', { bubbles: true }));
           el.dispatchEvent(new Event('change', { bubbles: true }));
         }
       };
 
-      setValue('first_name', data.first_name);
-      setValue('last_name', data.last_name);
-      setValue('email', data.email);
-      setValue('phone', data.phone);
-      setValue('state', data.state);
-      setValue('loan_balance', data.loan_balance);
-      setValue('school_status', data.school_status);
-      setValue('income_source', data.income_source);
-      setValue('loan_type', data.loan_type);
-      setValue('jornaya_leadid', data.jornaya_leadid);
-      setValue('trustedform_cert_url', data.trustedform_url || data.trustedform_cert_url);
-      setValue('lead_source', data.source || data.lead_source);
-      setValue('sub_id', data.sub_id);
+      setField('first_name', data.first_name);
+      setField('last_name', data.last_name);
+      setField('email', data.email);
+      setField('phone', data.phone);
+      setField('state', data.state);
+      setField('loan_balance', data.loan_balance);
+      setField('school_status', data.school_status);
+      setField('income_source', data.income_source);
+      setField('loan_type', data.loan_type);
+      setField('jornaya_leadid', data.jornaya_leadid);
+      setField('trustedform_cert_url', data.trustedform_url || data.trustedform_cert_url);
+      setField('lead_source', data.source || data.lead_source);
+      setField('sub_id', data.sub_id);
 
-      // Force consent checkbox
+      // Force consent
       const checkbox = document.querySelector('input[type="checkbox"]');
       if (checkbox) {
         checkbox.checked = true;
         checkbox.value = "on";
         checkbox.dispatchEvent(new Event('change', { bubbles: true }));
         checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('Consent checkbox forced ON');
+        console.log('[Page] Consent checkbox forced ON');
       }
 
-      // Auto submit the form
-      const form = document.querySelector('form');
-      if (form) {
-        console.log('Submitting form...');
-        form.submit();
+      // Click the actual Submit button (more reliable than form.submit())
+      const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], .btn-submit, button.green');
+      if (submitBtn) {
+        console.log('[Page] Clicking Submit button...');
+        submitBtn.click();
+      } else {
+        const form = document.querySelector('form');
+        if (form) {
+          console.log('[Page] Falling back to form.submit()');
+          form.submit();
+        }
       }
     }, leadData);
 
-    // Give GHL time to process the actual form submission
-    await sleep(7000);
+    // Give plenty of time for the actual network submission to GHL
+    console.log('Waiting for GHL to process submission...');
+    await sleep(12000);   // 12 seconds
 
     await browser.close();
 
-    console.log(`✅ Form submission attempted for: ${leadData.email}`);
-    res.json({
-      status: "success",
-      email: leadData.email,
-      message: "Form submitted via headless browser with forced JS"
-    });
+    console.log(`✅ Attempt completed for: ${leadData.email}`);
+    res.json({ status: "success", email: leadData.email, message: "Submit attempted with button click" });
 
   } catch (err) {
     if (browser) await browser.close().catch(() => {});
@@ -120,11 +118,7 @@ app.post('/submit', async (req, res) => {
   }
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+app.get('/health', (req, res) => res.json({ status: "ok" }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Coreg middleware running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Middleware running on port ${PORT}`));
