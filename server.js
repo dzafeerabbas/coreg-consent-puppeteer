@@ -21,7 +21,7 @@ app.post('/submit', async (req, res) => {
     `trustedform_cert_url=${encodeURIComponent(leadData.trustedform_cert_url)}&` +
     `lead_source=${encodeURIComponent(leadData.lead_source)}&` +
     `sub_id=${encodeURIComponent(leadData.sub_id)}&` +
-    `consent=on`;
+    `consent=${encodeURIComponent(leadData.consent)}`;
 
   console.log("Launching browser for:", leadData.email);
 
@@ -31,7 +31,7 @@ app.post('/submit', async (req, res) => {
   await page.goto(url, { waitUntil: 'networkidle2' });
   
   // Wait for form submission to complete
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(8000);
   
   await browser.close();
 
