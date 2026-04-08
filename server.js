@@ -57,10 +57,10 @@ app.post('/submit', async (req, res) => {
 
     // Extra waits to let JS fully execute (this is the key part)
     console.log("Waiting for JS to populate fields and submit form...");
-    await page.waitForTimeout(3000);   // Initial load
+    await page.waitFor(3000);   // Initial load
 
     // Try to confirm the form was submitted by waiting for navigation or success indicator
-    await page.waitForTimeout(6000);
+    await page.waitFor(6000);
 
     // Optional: Check if we can see any success message or redirect
     const pageContent = await page.content();
