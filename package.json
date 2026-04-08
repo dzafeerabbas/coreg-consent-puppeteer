@@ -2,8 +2,14 @@
   "name": "ghl-coreg-middleware",
   "version": "1.0.0",
   "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
     "puppeteer": "^23.6.0"
+  },
+  "config": {
+    "puppeteer_skip_chromium_download": false
   }
 }
