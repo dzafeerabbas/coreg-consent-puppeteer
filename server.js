@@ -53,54 +53,54 @@ app.post('/submit', async (req, res) => {
 
     console.log('✅ Page loaded. Forcing fill + submit...');
 
-    await page.evaluate((data) => {
-      // Fill fields
-      const setField = (name, value) => {
-        const el = document.querySelector(`input[name="${name}"]`);
-        if (el) {
-          el.value = value || '';
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      };
+    // await page.evaluate((data) => {
+    //   // Fill fields
+    //   const setField = (name, value) => {
+    //     const el = document.querySelector(`input[name="${name}"]`);
+    //     if (el) {
+    //       el.value = value || '';
+    //       el.dispatchEvent(new Event('input', { bubbles: true }));
+    //       el.dispatchEvent(new Event('change', { bubbles: true }));
+    //     }
+    //   };
 
-      setField('first_name', data.first_name);
-      setField('last_name', data.last_name);
-      setField('email', data.email);
-      setField('phone', data.phone);
-      setField('state', data.state);
-      setField('loan_balance', data.loan_balance);
-      setField('school_status', data.school_status);
-      setField('income_source', data.income_source);
-      setField('loan_type', data.loan_type);
-      setField('jornaya_leadid', data.jornaya_leadid);
-      setField('trustedform_cert_url', data.trustedform_url || data.trustedform_cert_url);
-      setField('lead_source', data.source || data.lead_source);
-      setField('sub_id', data.sub_id);
+    //   setField('first_name', data.first_name);
+    //   setField('last_name', data.last_name);
+    //   setField('email', data.email);
+    //   setField('phone', data.phone);
+    //   setField('state', data.state);
+    //   setField('loan_balance', data.loan_balance);
+    //   setField('school_status', data.school_status);
+    //   setField('income_source', data.income_source);
+    //   setField('loan_type', data.loan_type);
+    //   setField('jornaya_leadid', data.jornaya_leadid);
+    //   setField('trustedform_cert_url', data.trustedform_url || data.trustedform_cert_url);
+    //   setField('lead_source', data.source || data.lead_source);
+    //   setField('sub_id', data.sub_id);
 
       // Force consent
-      const checkbox = document.querySelector('input[type="checkbox"]');
-      if (checkbox) {
-        checkbox.checked = true;
-        checkbox.value = "on";
-        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-        checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('[Page] Consent checkbox forced ON');
-      }
+      // const checkbox = document.querySelector('input[type="checkbox"]');
+      // if (checkbox) {
+      //   checkbox.checked = true;
+      //   checkbox.value = "on";
+      //   checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      //   checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+      //   console.log('[Page] Consent checkbox forced ON');
+      // }
 
       // Click the actual Submit button (more reliable than form.submit())
-      const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], .btn-submit, button.green');
-      if (submitBtn) {
-        console.log('[Page] Clicking Submit button...');
-        submitBtn.click();
-      } else {
-        const form = document.querySelector('form');
-        if (form) {
-          console.log('[Page] Falling back to form.submit()');
-          form.submit();
-        }
-      }
-    }, leadData);
+    //   const submitBtn = document.querySelector('button[type="submit"], input[type="submit"], .btn-submit, button.green');
+    //   if (submitBtn) {
+    //     console.log('[Page] Clicking Submit button...');
+    //     submitBtn.click();
+    //   } else {
+    //     const form = document.querySelector('form');
+    //     if (form) {
+    //       console.log('[Page] Falling back to form.submit()');
+    //       form.submit();
+    //     }
+    //   }
+    // }, leadData);
 
     // Give plenty of time for the actual network submission to GHL
     console.log('Waiting for GHL to process submission...');
