@@ -1,13 +1,14 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const app = express();
+
 app.use(express.json({ limit: '10mb' }));
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 app.post('/submit', async (req, res) => {
   const leadData = req.body;
-
+  
   const baseUrl = 'https://formquickly.com/intake-submit-page';
   const queryParams = new URLSearchParams({
     first_name: leadData.first_name || '',
@@ -20,14 +21,15 @@ app.post('/submit', async (req, res) => {
     income_source: leadData.income_source || '',
     loan_type: leadData.loan_type || '',
     jornaya_leadid: leadData.jornaya_leadid || '',
-    trustedform_cert_url: leadData.trustedform_cert_url || '',
-    lead_source: leadData.lead_source || '',
+    trustedform_url: leadData.trustedform_url || leadData.trustedform_cert_url || '',
+    source: leadData.source || leadData.lead_source || '',
     sub_id: leadData.sub_id || '',
-    consent: leadData.consent
+    consent: 'on'
   });
 
   const fullUrl = `${baseUrl}?${queryParams.toString()}`;
-  console.log(`Processing lead: ${leadData.email || 'unknown'}`);
+
+  console.log(`🚀 Processing lead: ${leadData.email || 'unknown'}`);
 
   let browser;
   try {
@@ -46,44 +48,80 @@ app.post('/submit', async (req, res) => {
     });
 
     const page = await browser.newPage();
-
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36');
 
-    await page.goto(fullUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 45000
+    await page.goto(fullUrl, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 45000 
     });
 
-    console.log('Page loaded, waiting for JS to execute...');
-    await sleep(3000);
-    await sleep(6000);
+    console.log('Page loaded. Now forcing JS to fill fields and submit...');
 
-    const pageContent = await page.content();
-    const hasSuccess = pageContent.toLowerCase().includes('success') ||
-                       pageContent.toLowerCase().includes('submitted') ||
-                       pageContent.toLowerCase().includes('thank you');
+    // === CRITICAL PART: Manually run the auto-fill + consent + submit inside the page ===
+    await page.evaluate((data) => {
+      // Fill all fields
+      const setValue = (name, value) => {
+        const el = document.querySelector(`input[name="${name}"]`);
+        if (el) {
+          el.value = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
 
-    console.log(`Success indicator found: ${hasSuccess}`);
+      setValue('first_name', data.first_name);
+      setValue('last_name', data.last_name);
+      setValue('email', data.email);
+      setValue('phone', data.phone);
+      setValue('state', data.state);
+      setValue('loan_balance', data.loan_balance);
+      setValue('school_status', data.school_status);
+      setValue('income_source', data.income_source);
+      setValue('loan_type', data.loan_type);
+      setValue('jornaya_leadid', data.jornaya_leadid);
+      setValue('trustedform_cert_url', data.trustedform_url || data.trustedform_cert_url);
+      setValue('lead_source', data.source || data.lead_source);
+      setValue('sub_id', data.sub_id);
+
+      // Force consent checkbox
+      const checkbox = document.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = true;
+        checkbox.value = "on";
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+        console.log('Consent checkbox forced ON');
+      }
+
+      // Auto submit the form
+      const form = document.querySelector('form');
+      if (form) {
+        console.log('Submitting form...');
+        form.submit();
+      }
+    }, leadData);
+
+    // Give GHL time to process the actual form submission
+    await sleep(7000);
 
     await browser.close();
 
-    console.log(`Done: ${leadData.email || 'unknown'}`);
+    console.log(`✅ Form submission attempted for: ${leadData.email}`);
     res.json({
-      status: 'success',
+      status: "success",
       email: leadData.email,
-      successIndicator: hasSuccess,
-      message: 'Form submitted via headless browser'
+      message: "Form submitted via headless browser with forced JS"
     });
 
   } catch (err) {
     if (browser) await browser.close().catch(() => {});
-    console.error('Puppeteer error:', err.message);
-    res.status(500).json({ status: 'error', message: err.message });
+    console.error('❌ Error:', err.message);
+    res.status(500).json({ status: "error", message: err.message });
   }
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3000;
